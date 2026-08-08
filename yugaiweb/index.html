@@ -2,19 +2,158 @@
 <html lang="en">
 
 <head>
+
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0">
 
     <title>YugAI — Intelligent AI Assistant</title>
 
     <link rel="stylesheet" href="style.css">
+
 </head>
 
 <body>
 
-    <!-- YOUR APP CODE HERE -->
+<div class="app">
 
-    <script src="script.js"></script>
+    <aside class="sidebar">
+
+        <div class="brand">
+
+            <h1>YugAI</h1>
+
+            <span>
+                INTELLIGENT ASSISTANT
+            </span>
+
+        </div>
+
+
+        <button
+            class="new-chat"
+            onclick="newChat()"
+        >
+            ＋ New Chat
+        </button>
+
+
+        <div class="sidebar-info">
+
+            <h4>YUGAI</h4>
+
+            <p>
+                Intelligent AI assistant
+                <br><br>
+                Fast. Simple. Private.
+            </p>
+
+        </div>
+
+
+        <div class="sidebar-bottom">
+
+            <span>
+                YugAI v1.0
+            </span>
+
+        </div>
+
+    </aside>
+
+
+    <main class="main">
+
+
+        <header class="topbar">
+
+            <div class="top-title">
+                YugAI
+            </div>
+
+
+            <div class="status">
+
+                <span class="status-dot"></span>
+
+                AI Online
+
+            </div>
+
+        </header>
+
+
+        <section class="chat-section">
+
+
+            <div
+                class="welcome"
+                id="welcome"
+            >
+
+                <h2>
+                    How can I help you?
+                </h2>
+
+
+                <p>
+                    Ask anything. YugAI is ready.
+                </p>
+
+            </div>
+
+
+            <div
+                class="chat-box"
+                id="chatBox"
+            >
+            </div>
+
+
+        </section>
+
+
+        <div class="input-area">
+
+
+            <div class="input-box">
+
+
+                <input
+                    type="text"
+                    id="messageInput"
+                    placeholder="Message YugAI..."
+                    autocomplete="off"
+                >
+
+
+                <button
+                    id="sendButton"
+                    onclick="sendMessage()"
+                >
+                    ➤
+                </button>
+
+            </div>
+
+
+            <div class="disclaimer">
+
+                YugAI can make mistakes.
+                Check important information.
+
+            </div>
+
+        </div>
+
+
+    </main>
+
+</div>
+
+
+<script src="script.js"></script>
 
 </body>
 
