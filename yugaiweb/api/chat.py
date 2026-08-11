@@ -33,7 +33,7 @@ class handler(BaseHTTPRequestHandler):
 
             api_url = (
                 "https://generativelanguage.googleapis.com/"
-                "v1beta/models/gemini-2.5-flash:generateContent"
+                "v1beta/models/gemini-flash-latest:generateContent"
             )
 
             payload = {
@@ -48,7 +48,6 @@ class handler(BaseHTTPRequestHandler):
                     }
                 ],
                 "generationConfig": {
-                    "temperature": 0.7,
                     "maxOutputTokens": 500
                 }
             }
