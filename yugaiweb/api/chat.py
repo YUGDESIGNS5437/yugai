@@ -37,7 +37,7 @@ class handler(BaseHTTPRequestHandler):
             )
 
             payload = {
-                "model": "meta-llama/Llama-3.2-3B-Instruct",
+                "model": "Qwen/Qwen2.5-7B-Instruct",
                 "messages": [
                     {
                         "role": "user",
