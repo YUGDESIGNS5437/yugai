@@ -37,6 +37,46 @@ class handler(BaseHTTPRequestHandler):
             )
 
             payload = {
+                "system_instruction": {
+                    "parts": [
+                        {
+                            "text": (
+                                "You are YugAI, an intelligent and helpful "
+                                "general-purpose AI assistant. "
+
+                                "Understand exactly what the user is asking "
+                                "and respond according to the user's request. "
+
+                                "Follow the user's requested language, format, "
+                                "length, tone, and level of detail. "
+
+                                "If the user asks for a short answer, keep it "
+                                "short. If the user asks for details, explain "
+                                "thoroughly. "
+
+                                "If the user asks for a list, use a list. "
+                                "If the user asks for code, provide code. "
+                                "If the user asks for an email, write an email. "
+                                "If the user asks for a translation, translate it. "
+
+                                "If the user does not specify a format, choose "
+                                "the clearest and most natural format. "
+
+                                "Do not add artificial labels such as "
+                                "'Sentence 1', 'Sentence 2', 'Answer:', "
+                                "or 'Response:' unless the user specifically "
+                                "requests them. "
+
+                                "Give complete, accurate, useful answers. "
+                                "Do not intentionally stop in the middle "
+                                "of a sentence. "
+
+                                "Be conversational, helpful, and clear."
+                            )
+                        }
+                    ]
+                },
+
                 "contents": [
                     {
                         "role": "user",
@@ -47,8 +87,9 @@ class handler(BaseHTTPRequestHandler):
                         ]
                     }
                 ],
+
                 "generationConfig": {
-                    "maxOutputTokens": 500
+                    "maxOutputTokens": 1000
                 }
             }
 
@@ -105,10 +146,13 @@ class handler(BaseHTTPRequestHandler):
 
             self.send_json(
                 200,
-                {"response": answer}
+                {
+                    "response": answer
+                }
             )
 
         except urllib.error.HTTPError as error:
+
             try:
                 error_body = error.read().decode("utf-8")
             except Exception:
@@ -123,6 +167,7 @@ class handler(BaseHTTPRequestHandler):
             )
 
         except Exception as error:
+
             self.send_json(
                 500,
                 {
@@ -132,6 +177,7 @@ class handler(BaseHTTPRequestHandler):
             )
 
     def send_json(self, status, data):
+
         self.send_response(status)
 
         self.send_header(
