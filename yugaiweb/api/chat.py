@@ -69,10 +69,15 @@ class handler(BaseHTTPRequestHandler):
                 ""
             )
 
-            client_ip = forwarded_for.split(",")[0].strip()
+            client_ip = (
+                forwarded_for
+                .split(",")[0]
+                .strip()
+            )
 
             if not client_ip:
                 client_ip = self.client_address[0]
+
 
             # --------------------------------
             # Basic rate limit
@@ -105,9 +110,13 @@ class handler(BaseHTTPRequestHandler):
 
                 return
 
+
             previous_requests.append(now)
 
-            request_history[client_ip] = previous_requests
+            request_history[client_ip] = (
+                previous_requests
+            )
+
 
             # --------------------------------
             # Read request
@@ -131,16 +140,19 @@ class handler(BaseHTTPRequestHandler):
                 ""
             ).strip()
 
+
             if not message:
 
                 self.send_json(
                     400,
                     {
-                        "response": "Please enter a message."
+                        "response":
+                            "Please enter a message."
                     }
                 )
 
                 return
+
 
             # --------------------------------
             # API keys
@@ -154,18 +166,19 @@ class handler(BaseHTTPRequestHandler):
                 "GROQ_API_KEY"
             )
 
+
             if not gemini_key and not groq_key:
 
                 self.send_json(
                     500,
                     {
-                        "response": (
+                        "response":
                             "No AI API key is configured."
-                        )
                     }
                 )
 
                 return
+
 
             # =================================
             # TRY GEMINI FIRST
@@ -198,6 +211,7 @@ class handler(BaseHTTPRequestHandler):
                         str(gemini_error)
                     )
 
+
             # =================================
             # GEMINI FAILED → TRY GROQ
             # =================================
@@ -229,6 +243,7 @@ class handler(BaseHTTPRequestHandler):
                         str(groq_error)
                     )
 
+
             # =================================
             # BOTH FAILED
             # =================================
@@ -244,6 +259,7 @@ class handler(BaseHTTPRequestHandler):
                 }
             )
 
+
         except Exception as error:
 
             self.send_json(
@@ -256,6 +272,7 @@ class handler(BaseHTTPRequestHandler):
                     "error": str(error)
                 }
             )
+
 
     # =====================================
     # Gemini
@@ -273,44 +290,71 @@ class handler(BaseHTTPRequestHandler):
             "generateContent"
         )
 
+
         payload = {
+
             "system_instruction": {
+
                 "parts": [
+
                     {
                         "text": SYSTEM_PROMPT
                     }
+
                 ]
+
             },
 
             "contents": [
+
                 {
                     "role": "user",
+
                     "parts": [
+
                         {
                             "text": message
                         }
+
                     ]
+
                 }
+
             ],
 
             "generationConfig": {
-                "maxOutputTokens": 1000
+
+                "maxOutputTokens": 1000,
+
+                "temperature": 0.7
+
             }
+
         }
 
+
         request = urllib.request.Request(
+
             api_url,
+
             data=json.dumps(
                 payload
             ).encode("utf-8"),
 
             headers={
-                "x-goog-api-key": api_key,
-                "Content-Type": "application/json"
+
+                "x-goog-api-key":
+                    api_key,
+
+                "Content-Type":
+                    "application/json"
+
             },
 
             method="POST"
+
         )
+
 
         with urllib.request.urlopen(
             request,
@@ -318,18 +362,24 @@ class handler(BaseHTTPRequestHandler):
         ) as response:
 
             result = json.loads(
-                response.read().decode("utf-8")
+                response.read().decode(
+                    "utf-8"
+                )
             )
+
 
         candidates = result.get(
             "candidates",
             []
         )
 
+
         if not candidates:
+
             raise Exception(
                 "Gemini returned no candidates."
             )
+
 
         parts = (
             candidates[0]
@@ -337,17 +387,22 @@ class handler(BaseHTTPRequestHandler):
             .get("parts", [])
         )
 
+
         answer = "".join(
             part.get("text", "")
             for part in parts
         ).strip()
 
+
         if not answer:
+
             raise Exception(
                 "Gemini returned an empty response."
             )
 
+
         return answer
+
 
     # =====================================
     # Groq fallback
@@ -364,73 +419,148 @@ class handler(BaseHTTPRequestHandler):
             "openai/v1/chat/completions"
         )
 
+
         payload = {
-            "model": "llama-3.3-70b-versatile",
+
+            "model":
+                "llama-3.3-70b-versatile",
 
             "messages": [
+
                 {
                     "role": "system",
                     "content": SYSTEM_PROMPT
                 },
+
                 {
                     "role": "user",
                     "content": message
                 }
+
             ],
 
             "max_tokens": 1000,
 
-            "temperature": 0.7
+            "temperature": 0.7,
+
+            "stream": False
+
         }
 
+
         request = urllib.request.Request(
+
             api_url,
+
             data=json.dumps(
                 payload
             ).encode("utf-8"),
 
             headers={
-                "Authorization": (
-                    f"Bearer {api_key}"
-                ),
-                "Content-Type": "application/json"
+
+                "Authorization":
+                    f"Bearer {api_key}",
+
+                "Content-Type":
+                    "application/json"
+
             },
 
             method="POST"
+
         )
 
-        with urllib.request.urlopen(
-            request,
-            timeout=60
-        ) as response:
 
-            result = json.loads(
-                response.read().decode("utf-8")
+        # ---------------------------------
+        # Groq request
+        # ---------------------------------
+
+        try:
+
+            with urllib.request.urlopen(
+                request,
+                timeout=60
+            ) as response:
+
+                result = json.loads(
+                    response.read().decode(
+                        "utf-8"
+                    )
+                )
+
+
+        except urllib.error.HTTPError as error:
+
+            try:
+
+                error_body = (
+                    error.read()
+                    .decode("utf-8")
+                )
+
+            except Exception:
+
+                error_body = (
+                    "Unknown Groq error."
+                )
+
+
+            # IMPORTANT:
+            # This prints the REAL Groq error
+            # into Vercel logs.
+
+            print(
+                f"Groq HTTP {error.code}: "
+                f"{error_body}"
             )
+
+
+            raise Exception(
+                f"Groq HTTP {error.code}: "
+                f"{error_body}"
+            )
+
+
+        # ---------------------------------
+        # Extract response
+        # ---------------------------------
 
         choices = result.get(
             "choices",
             []
         )
 
+
         if not choices:
+
             raise Exception(
-                "Groq returned no choices."
+                "Groq returned no choices: "
+                + json.dumps(result)
             )
 
-        answer = (
+
+        message_data = (
             choices[0]
             .get("message", {})
+        )
+
+
+        answer = (
+            message_data
             .get("content", "")
             .strip()
         )
 
+
         if not answer:
+
             raise Exception(
                 "Groq returned an empty response."
             )
 
+
         return answer
+
 
     # =====================================
     # JSON response
@@ -454,7 +584,13 @@ class handler(BaseHTTPRequestHandler):
             "*"
         )
 
+        self.send_header(
+            "Cache-Control",
+            "no-store"
+        )
+
         self.end_headers()
+
 
         self.wfile.write(
             json.dumps(
