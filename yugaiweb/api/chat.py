@@ -37,7 +37,7 @@ class handler(BaseHTTPRequestHandler):
             )
 
             payload = {
-                "model": "Qwen/Qwen2.5-7B-Instruct",
+                "model": "openai/gpt-oss-120b:fastest",
                 "messages": [
                     {
                         "role": "user",
@@ -45,7 +45,8 @@ class handler(BaseHTTPRequestHandler):
                     }
                 ],
                 "max_tokens": 500,
-                "temperature": 0.7
+                "temperature": 0.7,
+                "stream": False
             }
 
             request = urllib.request.Request(
