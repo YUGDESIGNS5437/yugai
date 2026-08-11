@@ -22,38 +22,42 @@ class handler(BaseHTTPRequestHandler):
                 )
                 return
 
-            token = os.environ.get("HF_TOKEN")
+            api_key = os.environ.get("GEMINI_API_KEY")
 
-            if not token:
+            if not api_key:
                 self.send_json(
                     500,
-                    {"response": "HF_TOKEN is not configured."}
+                    {"response": "GEMINI_API_KEY is not configured."}
                 )
                 return
 
             api_url = (
-                "https://router.huggingface.co/"
-                "v1/chat/completions"
+                "https://generativelanguage.googleapis.com/"
+                "v1beta/models/gemini-2.5-flash:generateContent"
             )
 
             payload = {
-                "model": "openai/gpt-oss-120b:groq",
-                "messages": [
+                "contents": [
                     {
                         "role": "user",
-                        "content": message
+                        "parts": [
+                            {
+                                "text": message
+                            }
+                        ]
                     }
                 ],
-                "max_tokens": 500,
-                "temperature": 0.7,
-                "stream": False
+                "generationConfig": {
+                    "temperature": 0.7,
+                    "maxOutputTokens": 500
+                }
             }
 
             request = urllib.request.Request(
                 api_url,
                 data=json.dumps(payload).encode("utf-8"),
                 headers={
-                    "Authorization": f"Bearer {token}",
+                    "x-goog-api-key": api_key,
                     "Content-Type": "application/json"
                 },
                 method="POST"
@@ -68,11 +72,37 @@ class handler(BaseHTTPRequestHandler):
                     response.read().decode("utf-8")
                 )
 
-            answer = (
-                result["choices"][0]
-                ["message"]["content"]
-                .strip()
+            candidates = result.get("candidates", [])
+
+            if not candidates:
+                self.send_json(
+                    500,
+                    {
+                        "response": "Gemini returned no response.",
+                        "error": json.dumps(result)
+                    }
+                )
+                return
+
+            parts = (
+                candidates[0]
+                .get("content", {})
+                .get("parts", [])
             )
+
+            answer = "".join(
+                part.get("text", "")
+                for part in parts
+            ).strip()
+
+            if not answer:
+                self.send_json(
+                    500,
+                    {
+                        "response": "Gemini returned an empty response."
+                    }
+                )
+                return
 
             self.send_json(
                 200,
@@ -83,12 +113,12 @@ class handler(BaseHTTPRequestHandler):
             try:
                 error_body = error.read().decode("utf-8")
             except Exception:
-                error_body = "Unknown Hugging Face error."
+                error_body = "Unknown Gemini API error."
 
             self.send_json(
-                500,
+                error.code,
                 {
-                    "response": "Hugging Face API request failed.",
+                    "response": "Gemini API request failed.",
                     "error": error_body
                 }
             )
