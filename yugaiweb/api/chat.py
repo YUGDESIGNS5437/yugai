@@ -37,7 +37,7 @@ class handler(BaseHTTPRequestHandler):
             )
 
             payload = {
-                "model": "openai/gpt-oss-120b:fastest",
+                "model": "openai/gpt-oss-120b:groq",
                 "messages": [
                     {
                         "role": "user",
@@ -104,14 +104,17 @@ class handler(BaseHTTPRequestHandler):
 
     def send_json(self, status, data):
         self.send_response(status)
+
         self.send_header(
             "Content-Type",
             "application/json"
         )
+
         self.send_header(
             "Access-Control-Allow-Origin",
             "*"
         )
+
         self.end_headers()
 
         self.wfile.write(
