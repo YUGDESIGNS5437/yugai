@@ -3,24 +3,16 @@ const sendButton = document.getElementById("sendButton");
 const chatBox = document.getElementById("chatBox");
 const welcome = document.getElementById("welcome");
 
-
 function escapeHtml(text) {
-
     const div = document.createElement("div");
-
     div.textContent = text;
-
     return div.innerHTML;
 }
 
-
 function addMessage(sender, message, type) {
+    const messageElement = document.createElement("div");
 
-    const messageElement =
-        document.createElement("div");
-
-    messageElement.className =
-        `message ${type}`;
+    messageElement.className = `message ${type}`;
 
     messageElement.innerHTML = `
         <div class="message-name">
@@ -34,20 +26,14 @@ function addMessage(sender, message, type) {
 
     chatBox.appendChild(messageElement);
 
-    chatBox.scrollTop =
-        chatBox.scrollHeight;
+    chatBox.scrollTop = chatBox.scrollHeight;
 }
 
-
 function showThinking() {
-
-    const thinking =
-        document.createElement("div");
+    const thinking = document.createElement("div");
 
     thinking.id = "thinking";
-
-    thinking.className =
-        "message assistant";
+    thinking.className = "message assistant";
 
     thinking.innerHTML = `
         <div class="message-name">
@@ -61,34 +47,25 @@ function showThinking() {
 
     chatBox.appendChild(thinking);
 
-    chatBox.scrollTop =
-        chatBox.scrollHeight;
+    chatBox.scrollTop = chatBox.scrollHeight;
 }
 
-
 function removeThinking() {
-
-    const thinking =
-        document.getElementById("thinking");
+    const thinking = document.getElementById("thinking");
 
     if (thinking) {
         thinking.remove();
     }
 }
 
-
 async function sendMessage() {
-
-    const message =
-        input.value.trim();
+    const message = input.value.trim();
 
     if (!message) {
         return;
     }
 
-
     welcome.style.display = "none";
-
 
     addMessage(
         "You",
@@ -96,18 +73,14 @@ async function sendMessage() {
         "user"
     );
 
-
     input.value = "";
 
     input.disabled = true;
     sendButton.disabled = true;
 
-
     showThinking();
 
-
     try {
-
         const response = await fetch(
             "/api/chat",
             {
@@ -123,19 +96,19 @@ async function sendMessage() {
             }
         );
 
-
         const data = await response.json();
 
-
         removeThinking();
-
 
         if (!response.ok) {
 
             addMessage(
                 "YugAI",
-                data.response ||
-                "Sorry, something went wrong.",
+                (data.response ||
+                    "Sorry, something went wrong.") +
+                (data.error ?
+                    "\n\nDetails: " + data.error :
+                    ""),
                 "assistant"
             );
 
@@ -147,14 +120,11 @@ async function sendMessage() {
                 "Sorry, I couldn't generate a response.",
                 "assistant"
             );
-
         }
-
 
     } catch (error) {
 
         removeThinking();
-
 
         addMessage(
             "YugAI",
@@ -163,9 +133,7 @@ async function sendMessage() {
         );
 
         console.error(error);
-
     }
-
 
     input.disabled = false;
     sendButton.disabled = false;
@@ -173,9 +141,7 @@ async function sendMessage() {
     input.focus();
 }
 
-
 function newChat() {
-
     chatBox.innerHTML = "";
 
     welcome.style.display = "block";
@@ -185,7 +151,6 @@ function newChat() {
     input.focus();
 }
 
-
 input.addEventListener(
     "keydown",
     function(event) {
@@ -194,12 +159,9 @@ input.addEventListener(
             event.key === "Enter" &&
             !event.shiftKey
         ) {
-
             event.preventDefault();
 
             sendMessage();
-
         }
-
     }
 );
