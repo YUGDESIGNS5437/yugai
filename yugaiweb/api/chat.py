@@ -6,9 +6,9 @@ import urllib.error
 from http.server import BaseHTTPRequestHandler
 
 
-# ---------------------------------------
-# Basic rate limiting
-# ---------------------------------------
+# =====================================
+# RATE LIMIT SETTINGS
+# =====================================
 
 RATE_LIMIT = 10
 RATE_WINDOW = 60
@@ -16,9 +16,30 @@ RATE_WINDOW = 60
 request_history = {}
 
 
-# ---------------------------------------
-# YugAI system instructions
-# ---------------------------------------
+# =====================================
+# BASIC USAGE ANALYTICS
+# Note: This is temporary/in-memory data.
+# Vercel may reset it when functions restart.
+# =====================================
+
+analytics = {
+    "total_requests": 0,
+    "successful_requests": 0,
+    "failed_requests": 0,
+    "gemini_success": 0,
+    "gemini_failed": 0,
+    "gemini_429": 0,
+    "groq_attempts": 0,
+    "groq_success": 0,
+    "groq_failed": 0,
+    "rate_limited": 0,
+    "unique_ips": set()
+}
+
+
+# =====================================
+# YUGAI SYSTEM PROMPT
+# =====================================
 
 SYSTEM_PROMPT = (
     "You are YugAI, an intelligent and helpful general-purpose AI assistant. "
@@ -53,16 +74,16 @@ SYSTEM_PROMPT = (
 class handler(BaseHTTPRequestHandler):
 
     # =====================================
-    # Main POST endpoint
+    # MAIN POST ENDPOINT
     # =====================================
 
     def do_POST(self):
 
         try:
 
-            # --------------------------------
+            # ---------------------------------
             # Get client IP
-            # --------------------------------
+            # ---------------------------------
 
             forwarded_for = self.headers.get(
                 "x-forwarded-for",
@@ -79,9 +100,20 @@ class handler(BaseHTTPRequestHandler):
                 client_ip = self.client_address[0]
 
 
-            # --------------------------------
-            # Basic rate limit
-            # --------------------------------
+            # ---------------------------------
+            # Track request and unique visitor
+            # ---------------------------------
+
+            analytics["total_requests"] += 1
+
+            analytics["unique_ips"].add(
+                client_ip
+            )
+
+
+            # ---------------------------------
+            # Rate limiting
+            # ---------------------------------
 
             now = time.time()
 
@@ -96,7 +128,10 @@ class handler(BaseHTTPRequestHandler):
                 if now - request_time < RATE_WINDOW
             ]
 
+
             if len(previous_requests) >= RATE_LIMIT:
+
+                analytics["rate_limited"] += 1
 
                 self.send_json(
                     429,
@@ -118,9 +153,9 @@ class handler(BaseHTTPRequestHandler):
             )
 
 
-            # --------------------------------
+            # ---------------------------------
             # Read request
-            # --------------------------------
+            # ---------------------------------
 
             length = int(
                 self.headers.get(
@@ -154,9 +189,9 @@ class handler(BaseHTTPRequestHandler):
                 return
 
 
-            # --------------------------------
-            # API keys
-            # --------------------------------
+            # ---------------------------------
+            # Get API keys
+            # ---------------------------------
 
             gemini_key = os.environ.get(
                 "GEMINI_API_KEY"
@@ -168,6 +203,8 @@ class handler(BaseHTTPRequestHandler):
 
 
             if not gemini_key and not groq_key:
+
+                analytics["failed_requests"] += 1
 
                 self.send_json(
                     500,
@@ -193,7 +230,15 @@ class handler(BaseHTTPRequestHandler):
                         message
                     )
 
+
                     if answer:
+
+                        analytics["gemini_success"] += 1
+
+                        analytics[
+                            "successful_requests"
+                        ] += 1
+
 
                         self.send_json(
                             200,
@@ -204,19 +249,38 @@ class handler(BaseHTTPRequestHandler):
 
                         return
 
+
                 except Exception as gemini_error:
+
+                    analytics["gemini_failed"] += 1
+
+                    error_text = str(
+                        gemini_error
+                    )
+
+                    if (
+                        "429" in error_text
+                        or "Too Many Requests"
+                        in error_text
+                    ):
+
+                        analytics["gemini_429"] += 1
+
 
                     print(
                         "Gemini failed:",
-                        str(gemini_error)
+                        error_text
                     )
 
 
             # =================================
-            # GEMINI FAILED → TRY GROQ
+            # GEMINI FAILED -> TRY GROQ
             # =================================
 
             if groq_key:
+
+                analytics["groq_attempts"] += 1
+
 
                 try:
 
@@ -225,7 +289,15 @@ class handler(BaseHTTPRequestHandler):
                         message
                     )
 
+
                     if answer:
+
+                        analytics["groq_success"] += 1
+
+                        analytics[
+                            "successful_requests"
+                        ] += 1
+
 
                         self.send_json(
                             200,
@@ -236,7 +308,10 @@ class handler(BaseHTTPRequestHandler):
 
                         return
 
+
                 except Exception as groq_error:
+
+                    analytics["groq_failed"] += 1
 
                     print(
                         "Groq fallback failed:",
@@ -245,8 +320,11 @@ class handler(BaseHTTPRequestHandler):
 
 
             # =================================
-            # BOTH FAILED
+            # BOTH PROVIDERS FAILED
             # =================================
+
+            analytics["failed_requests"] += 1
+
 
             self.send_json(
                 503,
@@ -262,6 +340,9 @@ class handler(BaseHTTPRequestHandler):
 
         except Exception as error:
 
+            analytics["failed_requests"] += 1
+
+
             self.send_json(
                 500,
                 {
@@ -275,7 +356,71 @@ class handler(BaseHTTPRequestHandler):
 
 
     # =====================================
-    # Gemini
+    # GET ANALYTICS
+    # Temporary endpoint:
+    # /api/chat
+    # =====================================
+
+    def do_GET(self):
+
+        try:
+
+            stats = {
+                "total_requests":
+                    analytics["total_requests"],
+
+                "successful_requests":
+                    analytics["successful_requests"],
+
+                "failed_requests":
+                    analytics["failed_requests"],
+
+                "gemini_success":
+                    analytics["gemini_success"],
+
+                "gemini_failed":
+                    analytics["gemini_failed"],
+
+                "gemini_429":
+                    analytics["gemini_429"],
+
+                "groq_attempts":
+                    analytics["groq_attempts"],
+
+                "groq_success":
+                    analytics["groq_success"],
+
+                "groq_failed":
+                    analytics["groq_failed"],
+
+                "rate_limited":
+                    analytics["rate_limited"],
+
+                "unique_visitors":
+                    len(
+                        analytics["unique_ips"]
+                    )
+            }
+
+
+            self.send_json(
+                200,
+                stats
+            )
+
+
+        except Exception as error:
+
+            self.send_json(
+                500,
+                {
+                    "error": str(error)
+                }
+            )
+
+
+    # =====================================
+    # GEMINI FUNCTION
     # =====================================
 
     def call_gemini(
@@ -405,7 +550,7 @@ class handler(BaseHTTPRequestHandler):
 
 
     # =====================================
-    # Groq fallback
+    # GROQ FALLBACK
     # =====================================
 
     def call_groq(
@@ -471,10 +616,6 @@ class handler(BaseHTTPRequestHandler):
         )
 
 
-        # ---------------------------------
-        # Groq request
-        # ---------------------------------
-
         try:
 
             with urllib.request.urlopen(
@@ -505,10 +646,6 @@ class handler(BaseHTTPRequestHandler):
                 )
 
 
-            # IMPORTANT:
-            # This prints the REAL Groq error
-            # into Vercel logs.
-
             print(
                 f"Groq HTTP {error.code}: "
                 f"{error_body}"
@@ -520,10 +657,6 @@ class handler(BaseHTTPRequestHandler):
                 f"{error_body}"
             )
 
-
-        # ---------------------------------
-        # Extract response
-        # ---------------------------------
 
         choices = result.get(
             "choices",
@@ -539,14 +672,9 @@ class handler(BaseHTTPRequestHandler):
             )
 
 
-        message_data = (
+        answer = (
             choices[0]
             .get("message", {})
-        )
-
-
-        answer = (
-            message_data
             .get("content", "")
             .strip()
         )
@@ -563,7 +691,7 @@ class handler(BaseHTTPRequestHandler):
 
 
     # =====================================
-    # JSON response
+    # SEND JSON RESPONSE
     # =====================================
 
     def send_json(
