@@ -27,12 +27,11 @@ async function (event) {
     loginButton.textContent =
         "Logging in...";
 
-
     try {
 
         const response =
             await fetch(
-                "/api/admin-login",
+                "/api/admin_login",
                 {
                     method: "POST",
 
@@ -52,10 +51,8 @@ async function (event) {
                 }
             );
 
-
         const data =
             await response.json();
-
 
         if (
             response.ok &&
@@ -67,13 +64,11 @@ async function (event) {
                 "authenticated"
             );
 
-
             window.location.href =
                 "dashboard.html";
 
             return;
         }
-
 
         errorMessage.textContent =
             data.error ||
@@ -90,8 +85,7 @@ async function (event) {
 
     finally {
 
-        loginButton.disabled =
-            false;
+        loginButton.disabled = false;
 
         loginButton.textContent =
             "Login to Dashboard";
