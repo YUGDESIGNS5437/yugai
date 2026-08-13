@@ -29,34 +29,63 @@ async function (event) {
 
     try {
 
-        const response =
-            await fetch(
-                "/api/admin_login",
-                {
-                    method: "POST",
+        const response = await fetch(
+            "/api/admin_login",
+            {
+                method: "POST",
 
-                    headers: {
-                        "Content-Type":
-                            "application/json"
-                    },
+                headers: {
+                    "Content-Type":
+                        "application/json"
+                },
 
-                    body:
-                        JSON.stringify({
-                            username:
-                                usernameInput.value.trim(),
+                body: JSON.stringify({
+                    username:
+                        usernameInput.value.trim(),
 
-                            password:
-                                passwordInput.value
-                        })
-                }
+                    password:
+                        passwordInput.value
+                })
+            }
+        );
+
+
+        const responseText =
+            await response.text();
+
+        console.log(
+            "Login status:",
+            response.status
+        );
+
+        console.log(
+            "Login response:",
+            responseText
+        );
+
+
+        let data = {};
+
+        try {
+
+            data =
+                JSON.parse(responseText);
+
+        }
+
+        catch (jsonError) {
+
+            throw new Error(
+                "Server returned: " +
+                responseText
             );
 
-        const data =
-            await response.json();
+        }
+
 
         if (
             response.ok &&
-            data.success
+            data.success === true
         ) {
 
             sessionStorage.setItem(
@@ -65,21 +94,30 @@ async function (event) {
             );
 
             window.location.href =
-                "dashboard.html";
+                "/dashboard.html";
 
             return;
+
         }
+
 
         errorMessage.textContent =
             data.error ||
-            "Invalid username or password.";
+            "Login failed. Status: " +
+            response.status;
 
     }
 
     catch (error) {
 
+        console.error(
+            "Login error:",
+            error
+        );
+
         errorMessage.textContent =
-            "Unable to connect to YugAI.";
+            "Login error: " +
+            error.message;
 
     }
 
