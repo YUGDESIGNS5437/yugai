@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <meta name="description" content="YugAI — Your Intelligent AI Assistant">
+    <meta name="theme-color" content="#080808">
+
+    <title>YugAI — Intelligent AI Assistant</title>
+
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+<div class="app">
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+
+        <div class="brand">
+            <h1>YugAI</h1>
+            <span>INTELLIGENT ASSISTANT</span>
+        </div>
+
+        <button class="new-chat" onclick="newChat()">
+            <span>＋</span>
+            New Chat
+        </button>
+
+        <nav class="workspace">
+
+            <button class="workspace-item active" onclick="showChat()">
+                <span class="icon">●</span>
+                <span>Chat</span>
+            </button>
+
+            <button class="workspace-item" onclick="showHistory()">
+                <span class="icon">○</span>
+                <span>History</span>
+            </button>
+
+            <button class="workspace-item" onclick="showSettings()">
+                <span class="icon">○</span>
+                <span>Settings</span>
+            </button>
+
+        </nav>
+
+        <div class="sidebar-info">
+            <div class="ollama-status">
+                <span class="status-dot"></span>
+                <div>
+                    <strong>Ollama connected</strong>
+                    <small>Local AI</small>
+                </div>
+            </div>
+
+            <div class="version">
+                YugAI v2.1
+            </div>
+        </div>
+
+    </aside>
+
+
+    <!-- MAIN -->
+    <main class="main">
+
+        <!-- TOP BAR -->
+        <header class="topbar">
+
+            <div class="top-title">
+                <strong>YugAI</strong>
+                <span>Llama 3.2 · 3B</span>
+            </div>
+
+            <div class="top-status">
+                <span class="status-dot"></span>
+                AI Online
+            </div>
+
+        </header>
+
+
+        <!-- CHAT AREA -->
+        <section class="chat-section">
+
+            <!-- WELCOME -->
+            <div class="welcome" id="welcome">
+
+                <div class="welcome-logo">
+                    Y
+                </div>
+
+                <h2>How can I help you?</h2>
+
+                <p>
+                    Your intelligent AI assistant.
+                    Ask anything and start a conversation.
+                </p>
+
+                <div class="prompt-grid">
+
+                    <button onclick="usePrompt('Explain artificial intelligence in simple words.')">
+                        <strong>Explain something</strong>
+                        <span>Get a simple explanation</span>
+                    </button>
+
+                    <button onclick="usePrompt('Help me write something professional.')">
+                        <strong>Write something</strong>
+                        <span>Create better content</span>
+                    </button>
+
+                    <button onclick="usePrompt('Help me solve this problem step by step.')">
+                        <strong>Solve a problem</strong>
+                        <span>Work through a problem</span>
+                    </button>
+
+                    <button onclick="usePrompt('Give me some creative ideas.')">
+                        <strong>Get ideas</strong>
+                        <span>Explore creative possibilities</span>
+                    </button>
+
+                </div>
+
+            </div>
+
+
+            <!-- CHAT MESSAGES -->
+            <div class="chat-box" id="chatBox"></div>
+
+
+            <!-- SETTINGS / HISTORY CONTENT -->
+            <div class="page-content" id="pageContent"></div>
+
+        </section>
+
+
+        <!-- INPUT -->
+        <div class="input-area">
+
+            <div class="input-box">
+
+                <input
+                    type="text"
+                    id="messageInput"
+                    placeholder="Message YugAI..."
+                    autocomplete="off"
+                >
+
+                <button
+                    id="sendButton"
+                    onclick="sendMessage()"
+                    aria-label="Send message"
+                >
+                    ➤
+                </button>
+
+            </div>
+
+            <div class="disclaimer">
+                YugAI can make mistakes. Check important information.
+            </div>
+
+        </div>
+
+    </main>
+
+</div>
+
+
+<script src="script.js"></script>
+
+</body>
+</html>
