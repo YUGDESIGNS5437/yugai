@@ -5,8 +5,8 @@ import urllib.request
 import urllib.error
 
 
-GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
-MODEL = "openai/gpt-oss-20b"
+OPENAI_API_URL = "https://api.openai.com/v1/responses"
+MODEL = "gpt-5.6-luna"
 
 
 class handler(BaseHTTPRequestHandler):
@@ -18,7 +18,6 @@ class handler(BaseHTTPRequestHandler):
             )
 
             body = self.rfile.read(content_length)
-
             data = json.loads(body)
 
             message = str(
@@ -32,38 +31,28 @@ class handler(BaseHTTPRequestHandler):
                 )
                 return
 
-            api_key = os.environ.get("GROQ_API_KEY")
+            api_key = os.environ.get("OPENAI_API_KEY")
 
             if not api_key:
                 self.send_json(
-                    {"error": "GROQ_API_KEY is not configured on Vercel."},
+                    {"error": "OPENAI_API_KEY is not configured."},
                     500
                 )
                 return
 
             payload = {
                 "model": MODEL,
-                "messages": [
-                    {
-                        "role": "system",
-                        "content": (
-                            "You are YugAI, a helpful and intelligent "
-                            "AI assistant created by YugDesigns. "
-                            "Give clear, useful and accurate answers."
-                        )
-                    },
-                    {
-                        "role": "user",
-                        "content": message
-                    }
-                ],
-                "temperature": 0.7,
-                "max_completion_tokens": 2048,
-                "stream": False
+                "instructions": (
+                    "You are YugAI, a helpful and intelligent "
+                    "AI assistant created by YugDesigns. "
+                    "Give clear, useful and accurate answers."
+                ),
+                "input": message,
+                "max_output_tokens": 2048
             }
 
             request = urllib.request.Request(
-                GROQ_API_URL,
+                OPENAI_API_URL,
                 data=json.dumps(payload).encode("utf-8"),
                 headers={
                     "Authorization": f"Bearer {api_key}",
@@ -81,17 +70,11 @@ class handler(BaseHTTPRequestHandler):
                     response.read().decode("utf-8")
                 )
 
-            answer = (
-                result
-                .get("choices", [{}])[0]
-                .get("message", {})
-                .get("content", "")
-                .strip()
-            )
+            answer = result.get("output_text", "").strip()
 
             if not answer:
                 self.send_json(
-                    {"error": "Groq returned an empty response."},
+                    {"error": "OpenAI returned an empty response."},
                     502
                 )
                 return
@@ -110,7 +93,7 @@ class handler(BaseHTTPRequestHandler):
 
             self.send_json(
                 {
-                    "error": f"Groq returned HTTP {error.code}.",
+                    "error": f"OpenAI returned HTTP {error.code}.",
                     "details": error_body
                 },
                 502
@@ -125,7 +108,6 @@ class handler(BaseHTTPRequestHandler):
                 },
                 500
             )
-
 
     def do_OPTIONS(self):
 
@@ -147,7 +129,6 @@ class handler(BaseHTTPRequestHandler):
         )
 
         self.end_headers()
-
 
     def send_json(self, data, status_code):
 
