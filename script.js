@@ -1,126 +1,112 @@
-// ==========================================
-// YugAI V2.1 — Web Frontend
-// Real Ollama API Connection
-// ==========================================
-
-
-// ---------- DOM ELEMENTS ----------
-
-const messageInput = document.getElementById("messageInput");
-const sendButton = document.getElementById("sendButton");
 const chatBox = document.getElementById("chatBox");
 const welcome = document.getElementById("welcome");
 const pageContent = document.getElementById("pageContent");
-
-
-// ---------- STORAGE ----------
+const messageInput = document.getElementById("messageInput");
+const sendButton = document.getElementById("sendButton");
 
 const STORAGE_KEY = "yugai_v21_messages";
 
-let messages = loadMessages();
-let isGenerating = false;
+let messages = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
 
 
-// ---------- LOAD SAVED MESSAGES ----------
-
-function loadMessages() {
-    try {
-        const saved = localStorage.getItem(STORAGE_KEY);
-
-        if (!saved) {
-            return [];
-        }
-
-        return JSON.parse(saved);
-    } catch (error) {
-        console.error("Could not load messages:", error);
-        return [];
-    }
-}
-
-
-// ---------- SAVE MESSAGES ----------
-
-function saveMessages() {
-    localStorage.setItem(
-        STORAGE_KEY,
-        JSON.stringify(messages)
-    );
-}
-
-
-// ---------- INITIALIZE ----------
+/* =========================
+   INITIAL LOAD
+========================= */
 
 document.addEventListener("DOMContentLoaded", () => {
-
     renderMessages();
 
-    if (messageInput) {
-        messageInput.focus();
-
-        messageInput.addEventListener("keydown", (event) => {
-            if (event.key === "Enter" && !event.shiftKey) {
-                event.preventDefault();
-
-                if (!isGenerating) {
-                    sendMessage();
-                }
-            }
-        });
-    }
+    messageInput.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" && !event.shiftKey) {
+            event.preventDefault();
+            sendMessage();
+        }
+    });
 });
 
 
-// ---------- RENDER MESSAGES ----------
+/* =========================
+   CHAT RENDERING
+========================= */
 
 function renderMessages() {
-
-    if (!chatBox) {
-        return;
-    }
-
     chatBox.innerHTML = "";
 
     if (messages.length === 0) {
-
-        if (welcome) {
-            welcome.style.display = "flex";
-        }
-
+        welcome.style.display = "flex";
+        chatBox.style.display = "none";
         return;
     }
 
-    if (welcome) {
-        welcome.style.display = "none";
-    }
+    welcome.style.display = "none";
+    chatBox.style.display = "flex";
 
     messages.forEach((message) => {
-
-        if (message.role === "user") {
-            addUserMessage(message.content, false);
-        }
-
-        if (message.role === "assistant") {
-            addAIMessage(message.content, false);
-        }
+        addMessageToUI(message.role, message.content);
     });
 
     scrollToBottom();
 }
 
 
-// ---------- SEND MESSAGE ----------
+function addMessageToUI(role, content) {
+    const messageWrapper = document.createElement("div");
+
+    messageWrapper.className =
+        role === "user"
+            ? "message user-message"
+            : "message ai-message";
+
+    const avatar = document.createElement("div");
+    avatar.className = "message-avatar";
+
+    avatar.textContent =
+        role === "user"
+            ? "Y"
+            : "Y";
+
+    const contentWrapper = document.createElement("div");
+    contentWrapper.className = "message-content";
+
+    const name = document.createElement("div");
+    name.className = "message-name";
+
+    name.textContent =
+        role === "user"
+            ? "You"
+            : "YugAI";
+
+    const text = document.createElement("div");
+    text.className = "message-text";
+
+    /*
+        textContent is intentionally used here
+        so AI responses cannot inject HTML/JavaScript.
+    */
+    text.textContent = content;
+
+    contentWrapper.appendChild(name);
+    contentWrapper.appendChild(text);
+
+    messageWrapper.appendChild(avatar);
+    messageWrapper.appendChild(contentWrapper);
+
+    chatBox.appendChild(messageWrapper);
+}
+
+
+function scrollToBottom() {
+    requestAnimationFrame(() => {
+        chatBox.scrollTop = chatBox.scrollHeight;
+    });
+}
+
+
+/* =========================
+   SEND MESSAGE
+========================= */
 
 async function sendMessage() {
-
-    if (isGenerating) {
-        return;
-    }
-
-    if (!messageInput) {
-        return;
-    }
-
     const message = messageInput.value.trim();
 
     if (!message) {
@@ -129,9 +115,10 @@ async function sendMessage() {
 
     messageInput.value = "";
 
-    hideWelcome();
+    pageContent.innerHTML = "";
 
-    // Add user message
+    addMessageToUI("user", message);
+
     messages.push({
         role: "user",
         content: message
@@ -139,27 +126,20 @@ async function sendMessage() {
 
     saveMessages();
 
-    addUserMessage(message, true);
+    welcome.style.display = "none";
+    chatBox.style.display = "flex";
 
-    await generateAIResponse(message);
-}
+    showThinking();
 
-
-// ---------- REAL AI RESPONSE ----------
-
-async function generateAIResponse(userMessage) {
-
-    isGenerating = true;
-
-    setSendButtonState(true);
-
-    const thinkingElement = addThinkingMessage();
+    sendButton.disabled = true;
+    messageInput.disabled = true;
 
     try {
+        const response = await getAIResponse(message);
 
-        const response = await getAIResponse(userMessage);
+        removeThinking();
 
-        removeThinkingMessage(thinkingElement);
+        addMessageToUI("assistant", response);
 
         messages.push({
             role: "assistant",
@@ -168,17 +148,13 @@ async function generateAIResponse(userMessage) {
 
         saveMessages();
 
-        addAIMessage(response, true);
-
     } catch (error) {
-
-        console.error("YugAI API Error:", error);
-
-        removeThinkingMessage(thinkingElement);
+        removeThinking();
 
         const errorMessage =
-            "Sorry, YugAI couldn't connect to the AI service.\n\n" +
-            "Please make sure Ollama and the YugAI API server are running.";
+            "Sorry, YugAI couldn't connect to the AI service. Please try again.";
+
+        addMessageToUI("assistant", errorMessage);
 
         messages.push({
             role: "assistant",
@@ -187,272 +163,150 @@ async function generateAIResponse(userMessage) {
 
         saveMessages();
 
-        addAIMessage(errorMessage, true);
+        console.error("YugAI API error:", error);
 
     } finally {
+        sendButton.disabled = false;
+        messageInput.disabled = false;
+        messageInput.focus();
 
-        isGenerating = false;
-
-        setSendButtonState(false);
-
-        if (messageInput) {
-            messageInput.focus();
-        }
+        scrollToBottom();
     }
 }
 
 
-// ==========================================
-// REAL YUGAI API
-// ==========================================
+/* =========================
+   PUBLIC VERCEL AI API
+========================= */
 
 async function getAIResponse(message) {
 
-    const response = await fetch(
-        "http://127.0.0.1:5000/api/chat",
-        {
-            method: "POST",
+    /*
+        IMPORTANT:
+        This uses the Vercel API route.
 
-            headers: {
-                "Content-Type": "application/json"
-            },
+        DO NOT use:
+        http://127.0.0.1:5000/api/chat
 
-            body: JSON.stringify({
-                message: message
-            })
-        }
-    );
+        The public website must use:
+        /api/chat
+    */
+
+    const response = await fetch("/api/chat", {
+        method: "POST",
+
+        headers: {
+            "Content-Type": "application/json"
+        },
+
+        body: JSON.stringify({
+            message: message
+        })
+    });
+
+
+    let data;
+
+    try {
+        data = await response.json();
+    } catch (error) {
+        throw new Error(
+            "The server returned an invalid response."
+        );
+    }
 
 
     if (!response.ok) {
+        console.error("YugAI server response:", data);
 
         throw new Error(
+            data.error ||
             "YugAI API request failed."
         );
     }
 
 
-    const data = await response.json();
-
-
-    if (data.error) {
-
+    if (!data.response) {
         throw new Error(
-            data.error
+            "The AI service returned an empty response."
         );
     }
 
 
-    return data.response || "Sorry, I didn't receive a response.";
+    return data.response.trim();
 }
 
 
-// ---------- ADD USER MESSAGE ----------
+/* =========================
+   THINKING INDICATOR
+========================= */
 
-function addUserMessage(text, save = true) {
+function showThinking() {
 
-    if (!chatBox) {
-        return;
-    }
+    removeThinking();
 
-    const messageElement =
-        document.createElement("div");
+    const thinking = document.createElement("div");
 
-    messageElement.className =
-        "message user-message";
+    thinking.id = "thinkingMessage";
+    thinking.className = "message ai-message thinking-message";
 
+    const avatar = document.createElement("div");
 
-    const content =
-        document.createElement("div");
-
-    content.className =
-        "message-content";
-
-
-    content.textContent = text;
-
-
-    messageElement.appendChild(content);
-
-    chatBox.appendChild(messageElement);
-
-    scrollToBottom();
-}
-
-
-// ---------- ADD AI MESSAGE ----------
-
-function addAIMessage(text, save = true) {
-
-    if (!chatBox) {
-        return;
-    }
-
-    const messageElement =
-        document.createElement("div");
-
-    messageElement.className =
-        "message ai-message";
-
-
-    const avatar =
-        document.createElement("div");
-
-    avatar.className =
-        "message-avatar";
-
+    avatar.className = "message-avatar";
     avatar.textContent = "Y";
 
+    const content = document.createElement("div");
 
-    const content =
-        document.createElement("div");
+    content.className = "message-content";
 
-    content.className =
-        "message-content";
+    const name = document.createElement("div");
 
+    name.className = "message-name";
+    name.textContent = "YugAI";
 
-    content.textContent = text;
+    const text = document.createElement("div");
 
+    text.className = "message-text";
+    text.textContent = "Thinking...";
 
-    messageElement.appendChild(avatar);
+    content.appendChild(name);
+    content.appendChild(text);
 
-    messageElement.appendChild(content);
+    thinking.appendChild(avatar);
+    thinking.appendChild(content);
 
-    chatBox.appendChild(messageElement);
-
-    scrollToBottom();
-}
-
-
-// ---------- THINKING MESSAGE ----------
-
-function addThinkingMessage() {
-
-    if (!chatBox) {
-        return null;
-    }
-
-    const messageElement =
-        document.createElement("div");
-
-    messageElement.className =
-        "message ai-message thinking-message";
-
-
-    const avatar =
-        document.createElement("div");
-
-    avatar.className =
-        "message-avatar";
-
-    avatar.textContent = "Y";
-
-
-    const content =
-        document.createElement("div");
-
-    content.className =
-        "message-content";
-
-
-    content.innerHTML =
-        "<span class='thinking-dots'>" +
-        "<span></span>" +
-        "<span></span>" +
-        "<span></span>" +
-        "</span>";
-
-
-    messageElement.appendChild(avatar);
-
-    messageElement.appendChild(content);
-
-    chatBox.appendChild(messageElement);
+    chatBox.appendChild(thinking);
 
     scrollToBottom();
-
-    return messageElement;
 }
 
 
-// ---------- REMOVE THINKING MESSAGE ----------
+function removeThinking() {
+    const thinking = document.getElementById("thinkingMessage");
 
-function removeThinkingMessage(element) {
-
-    if (element && element.parentNode) {
-        element.parentNode.removeChild(element);
+    if (thinking) {
+        thinking.remove();
     }
 }
 
 
-// ---------- HIDE WELCOME ----------
-
-function hideWelcome() {
-
-    if (welcome) {
-        welcome.style.display = "none";
-    }
-}
-
-
-// ---------- SEND BUTTON STATE ----------
-
-function setSendButtonState(disabled) {
-
-    if (!sendButton) {
-        return;
-    }
-
-    sendButton.disabled = disabled;
-
-    if (disabled) {
-        sendButton.style.opacity = "0.5";
-        sendButton.style.cursor = "not-allowed";
-    } else {
-        sendButton.style.opacity = "1";
-        sendButton.style.cursor = "pointer";
-    }
-}
-
-
-// ---------- SCROLL ----------
-
-function scrollToBottom() {
-
-    if (!chatBox) {
-        return;
-    }
-
-    setTimeout(() => {
-
-        chatBox.scrollTop =
-            chatBox.scrollHeight;
-
-    }, 50);
-}
-
-
-// ==========================================
-// PROMPT CARDS
-// ==========================================
+/* =========================
+   PROMPT CARDS
+========================= */
 
 function usePrompt(prompt) {
 
-    if (!messageInput) {
-        return;
-    }
+    showChat();
 
     messageInput.value = prompt;
 
     messageInput.focus();
-
-    sendMessage();
 }
 
 
-// ==========================================
-// NEW CHAT
-// ==========================================
+/* =========================
+   NEW CHAT
+========================= */
 
 function newChat() {
 
@@ -460,348 +314,314 @@ function newChat() {
 
     localStorage.removeItem(STORAGE_KEY);
 
-    if (chatBox) {
-        chatBox.innerHTML = "";
-    }
+    chatBox.innerHTML = "";
 
-    if (pageContent) {
-        pageContent.innerHTML = "";
-    }
+    pageContent.innerHTML = "";
 
-    if (welcome) {
-        welcome.style.display = "flex";
-    }
+    chatBox.style.display = "none";
 
-    showChat();
+    welcome.style.display = "flex";
 
-    if (messageInput) {
-        messageInput.value = "";
-        messageInput.focus();
-    }
+    messageInput.value = "";
+
+    messageInput.focus();
+
+    setActiveWorkspace("Chat");
 }
 
 
-// ==========================================
-// CHAT PAGE
-// ==========================================
+/* =========================
+   SAVE CHAT
+========================= */
+
+function saveMessages() {
+
+    localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify(messages)
+    );
+}
+
+
+/* =========================
+   CHAT PAGE
+========================= */
 
 function showChat() {
 
     setActiveWorkspace("Chat");
 
-    if (pageContent) {
-        pageContent.innerHTML = "";
-        pageContent.style.display = "none";
-    }
+    pageContent.innerHTML = "";
 
-    if (chatBox) {
-        chatBox.style.display = "flex";
-    }
+    welcome.style.display =
+        messages.length === 0 ? "flex" : "none";
 
-    if (welcome && messages.length === 0) {
-        welcome.style.display = "flex";
-    }
+    chatBox.style.display =
+        messages.length === 0 ? "none" : "flex";
 
-    if (messageInput) {
-        messageInput.focus();
-    }
+    messageInput.disabled = false;
+    sendButton.disabled = false;
+
+    messageInput.focus();
+
+    scrollToBottom();
 }
 
 
-// ==========================================
-// HISTORY PAGE
-// ==========================================
+/* =========================
+   HISTORY PAGE
+========================= */
 
 function showHistory() {
 
     setActiveWorkspace("History");
 
-    if (welcome) {
-        welcome.style.display = "none";
-    }
-
-    if (chatBox) {
-        chatBox.style.display = "none";
-    }
-
-    if (!pageContent) {
-        return;
-    }
-
-    pageContent.style.display = "block";
+    welcome.style.display = "none";
+    chatBox.style.display = "none";
 
     pageContent.innerHTML = `
-        <div class="page-header">
-            <h2>History</h2>
-            <p>Your recent YugAI conversations.</p>
-        </div>
+        <div class="content-page">
+            <div class="content-header">
+                <span class="content-label">YugAI</span>
+                <h2>Conversation History</h2>
+                <p>Your conversations are stored locally in this browser.</p>
+            </div>
 
-        <div class="history-card">
+            <div class="history-card">
 
-            ${
-                messages.length === 0
-
-                ? `
-                    <div class="empty-state">
-                        <div class="empty-icon">○</div>
-                        <h3>No conversations yet</h3>
-                        <p>Start chatting with YugAI to see your history here.</p>
-                    </div>
-                `
-
-                : `
-                    <div class="history-list">
-
-                        ${messages.map((message, index) => `
-
-                            <div class="history-item">
-
-                                <div class="history-number">
-                                    ${index + 1}
-                                </div>
-
-                                <div class="history-text">
-
-                                    <strong>
-                                        ${
-                                            message.role === "user"
-                                            ? "You"
-                                            : "YugAI"
-                                        }
-                                    </strong>
-
-                                    <span>
-                                        ${escapeHTML(
-                                            message.content.substring(0, 100)
-                                        )}
-                                    </span>
-
-                                </div>
-
+                ${
+                    messages.length === 0
+                        ? `
+                            <div class="empty-state">
+                                <div class="empty-icon">○</div>
+                                <h3>No conversations yet</h3>
+                                <p>Start chatting with YugAI to create your first conversation.</p>
+                            </div>
+                          `
+                        : `
+                            <div class="history-summary">
+                                <strong>${messages.length}</strong>
+                                <span>messages in this conversation</span>
                             </div>
 
-                        `).join("")}
+                            <div class="history-list">
 
-                    </div>
-                `
-            }
+                                ${messages
+                                    .map(
+                                        (message, index) => `
+                                            <div class="history-item">
+                                                <div class="history-number">
+                                                    ${index + 1}
+                                                </div>
 
+                                                <div class="history-text">
+                                                    <strong>
+                                                        ${
+                                                            message.role === "user"
+                                                                ? "You"
+                                                                : "YugAI"
+                                                        }
+                                                    </strong>
+
+                                                    <span>
+                                                        ${escapeHTML(
+                                                            message.content
+                                                        )}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        `
+                                    )
+                                    .join("")}
+
+                            </div>
+                          `
+                }
+
+            </div>
         </div>
     `;
+
+    messageInput.disabled = true;
+    sendButton.disabled = true;
 }
 
 
-// ==========================================
-// SETTINGS PAGE
-// ==========================================
+/* =========================
+   SETTINGS PAGE
+========================= */
 
 function showSettings() {
 
     setActiveWorkspace("Settings");
 
-    if (welcome) {
-        welcome.style.display = "none";
-    }
-
-    if (chatBox) {
-        chatBox.style.display = "none";
-    }
-
-    if (!pageContent) {
-        return;
-    }
-
-    pageContent.style.display = "block";
+    welcome.style.display = "none";
+    chatBox.style.display = "none";
 
     pageContent.innerHTML = `
+        <div class="content-page">
 
-        <div class="page-header">
-
-            <h2>Settings</h2>
-
-            <p>
-                Manage your YugAI experience.
-            </p>
-
-        </div>
+            <div class="content-header">
+                <span class="content-label">YugAI</span>
+                <h2>Settings</h2>
+                <p>Manage your YugAI experience.</p>
+            </div>
 
 
-        <div class="settings-card">
+            <div class="settings-grid">
 
-            <div class="settings-row">
+                <div class="settings-card">
 
-                <div>
-                    <strong>AI Model</strong>
+                    <div class="settings-card-title">
+                        <span>AI Model</span>
+                    </div>
 
-                    <span>
-                        Llama 3.2 · 3B
-                    </span>
+                    <div class="settings-row">
+                        <span>Model</span>
+                        <strong>GPT-OSS 20B</strong>
+                    </div>
+
+                    <div class="settings-row">
+                        <span>Provider</span>
+                        <strong>Groq</strong>
+                    </div>
+
+                    <div class="settings-row">
+                        <span>Status</span>
+                        <strong class="online-text">
+                            ● Online
+                        </strong>
+                    </div>
+
                 </div>
 
-                <span class="settings-badge">
-                    Local
-                </span>
 
-            </div>
+                <div class="settings-card">
 
+                    <div class="settings-card-title">
+                        <span>Conversation</span>
+                    </div>
 
-            <div class="settings-row">
+                    <div class="settings-row">
+                        <span>Local messages</span>
+                        <strong>
+                            ${messages.length}
+                        </strong>
+                    </div>
 
-                <div>
-                    <strong>AI Engine</strong>
+                    <button
+                        class="danger-button"
+                        onclick="clearConversation()"
+                    >
+                        Clear Conversation
+                    </button>
 
-                    <span>
-                        Ollama
-                    </span>
                 </div>
 
-                <span class="settings-badge">
-                    Connected
-                </span>
 
-            </div>
+                <div class="settings-card">
 
+                    <div class="settings-card-title">
+                        <span>About YugAI</span>
+                    </div>
 
-            <div class="settings-row">
+                    <p class="settings-description">
+                        YugAI is an intelligent AI assistant created
+                        by YugDesigns.
+                    </p>
 
-                <div>
-                    <strong>Version</strong>
+                    <div class="settings-row">
+                        <span>Version</span>
+                        <strong>v2.1</strong>
+                    </div>
 
-                    <span>
-                        YugAI v2.1
-                    </span>
+                    <div class="settings-row">
+                        <span>Creator</span>
+                        <strong>YugPatel</strong>
+                    </div>
+
                 </div>
 
             </div>
 
         </div>
-
-
-        <div class="settings-card">
-
-            <div class="settings-section">
-
-                <h3>About YugAI</h3>
-
-                <p>
-                    YugAI is an intelligent AI assistant
-                    created by YugPatel.
-                </p>
-
-                <p>
-                    Powered locally through Ollama
-                    and the Llama 3.2 · 3B model.
-                </p>
-
-            </div>
-
-        </div>
-
-
-        <div class="settings-card danger-card">
-
-            <div class="settings-section">
-
-                <h3>Conversation Data</h3>
-
-                <p>
-                    Clear the conversations stored
-                    in this browser.
-                </p>
-
-                <button
-                    class="clear-button"
-                    onclick="clearConversation()"
-                >
-                    Clear Conversation
-                </button>
-
-            </div>
-
-        </div>
-
     `;
+
+    messageInput.disabled = true;
+    sendButton.disabled = true;
 }
 
 
-// ==========================================
-// CLEAR CONVERSATION
-// ==========================================
+/* =========================
+   CLEAR CONVERSATION
+========================= */
 
 function clearConversation() {
+
+    const confirmed = confirm(
+        "Are you sure you want to clear this conversation?"
+    );
+
+    if (!confirmed) {
+        return;
+    }
 
     messages = [];
 
     localStorage.removeItem(STORAGE_KEY);
 
+    chatBox.innerHTML = "";
+
+    pageContent.innerHTML = "";
+
     showChat();
-
-    if (chatBox) {
-        chatBox.innerHTML = "";
-    }
-
-    if (welcome) {
-        welcome.style.display = "flex";
-    }
 }
 
 
-// ==========================================
-// ACTIVE NAVIGATION
-// ==========================================
+/* =========================
+   ACTIVE NAVIGATION
+========================= */
 
 function setActiveWorkspace(name) {
 
     const buttons =
-        document.querySelectorAll(
-            ".workspace-item"
-        );
+        document.querySelectorAll(".workspace-item");
 
     buttons.forEach((button) => {
 
         const text =
-            button.textContent.trim();
+            button.querySelector("span:last-child");
 
-        button.classList.toggle(
-            "active",
-            text.includes(name)
-        );
+        if (!text) {
+            return;
+        }
 
+        if (text.textContent.trim() === name) {
+            button.classList.add("active");
+        } else {
+            button.classList.remove("active");
+        }
     });
 }
 
 
-// ==========================================
-// HTML ESCAPE
-// ==========================================
+/* =========================
+   HTML ESCAPING
+========================= */
 
-function escapeHTML(text) {
+function escapeHTML(value) {
 
-    const div =
-        document.createElement("div");
+    const div = document.createElement("div");
 
-    div.textContent = text;
+    div.textContent = value;
 
     return div.innerHTML;
 }
 
 
-// ==========================================
-// RESPONSIVE KEYBOARD BEHAVIOR
-// ==========================================
-
-window.addEventListener("resize", () => {
-
-    if (chatBox) {
-        scrollToBottom();
-    }
-
-});
-
-
-// ==========================================
-// GLOBAL FUNCTIONS
-// ==========================================
+/* =========================
+   GLOBAL FUNCTIONS
+========================= */
 
 window.sendMessage = sendMessage;
 window.newChat = newChat;
