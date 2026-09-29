@@ -6,14 +6,12 @@ import urllib.error
 
 
 GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
-
 MODEL = "openai/gpt-oss-20b"
 
 
 class handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
-
         try:
             content_length = int(
                 self.headers.get("Content-Length", 0)
@@ -23,7 +21,9 @@ class handler(BaseHTTPRequestHandler):
 
             data = json.loads(body)
 
-            message = data.get("message", "").strip()
+            message = str(
+                data.get("message", "")
+            ).strip()
 
             if not message:
                 self.send_json(
@@ -36,7 +36,7 @@ class handler(BaseHTTPRequestHandler):
 
             if not api_key:
                 self.send_json(
-                    {"error": "GROQ_API_KEY is not configured."},
+                    {"error": "GROQ_API_KEY is not configured on Vercel."},
                     500
                 )
                 return
@@ -48,8 +48,8 @@ class handler(BaseHTTPRequestHandler):
                         "role": "system",
                         "content": (
                             "You are YugAI, a helpful and intelligent "
-                            "AI assistant. Give clear, useful and "
-                            "accurate answers."
+                            "AI assistant created by YugDesigns. "
+                            "Give clear, useful and accurate answers."
                         )
                     },
                     {
@@ -58,7 +58,8 @@ class handler(BaseHTTPRequestHandler):
                     }
                 ],
                 "temperature": 0.7,
-                "max_completion_tokens": 2048
+                "max_completion_tokens": 2048,
+                "stream": False
             }
 
             request = urllib.request.Request(
@@ -89,7 +90,11 @@ class handler(BaseHTTPRequestHandler):
             )
 
             if not answer:
-                answer = "Sorry, I couldn't generate a response."
+                self.send_json(
+                    {"error": "Groq returned an empty response."},
+                    502
+                )
+                return
 
             self.send_json(
                 {"response": answer},
@@ -105,9 +110,7 @@ class handler(BaseHTTPRequestHandler):
 
             self.send_json(
                 {
-                    "error": (
-                        f"AI service returned HTTP {error.code}."
-                    ),
+                    "error": f"Groq returned HTTP {error.code}.",
                     "details": error_body
                 },
                 502
